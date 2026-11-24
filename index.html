@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>إنقاذ الطريق - القاهرة الكبرى</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --primary: #0f172a;
+      --accent: #ef4444;
+      --whatsapp: #25D366;
+      --whatsapp-dark: #128C7E;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    header {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #fff;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand h1 { margin: 0; font-size: 20px; }
+    .brand span { background: var(--accent); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+    .support-badge {
+      background: rgba(37, 211, 102, 0.15);
+      border: 1px solid var(--whatsapp);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      border: 1px solid var(--border);
+    }
+    h2 { margin: 0 0 12px; font-size: 17px; color: var(--primary); }
+    label { display: block; font-size: 13px; font-weight: bold; margin: 10px 0 6px; color: var(--text); }
+    select, input, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+    }
+    .btn {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: 0.2s;
+    }
+    .btn-gps { background: #2563eb; color: #fff; margin-bottom: 10px; }
+    .btn-gps:hover { background: #1d4ed8; }
+    .btn-wa { background: var(--whatsapp); color: #fff; font-size: 15px; padding: 13px; margin-top: 12px; }
+    .btn-wa:hover { background: var(--whatsapp-dark); }
+    .btn-gmaps { background: #f8fafc; color: #0f172a; border: 1px solid #cbd5e1; margin-top: 8px; }
+    .btn-gmaps:hover { background: #e2e8f0; }
+    .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .preset-btn {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 5px 9px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .preset-btn:hover { background: #e2e8f0; }
+    #map-wrapper {
+      position: relative;
+      height: 430px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+      background: #e2e8f0;
+    }
+    #map { width: 100%; height: 100%; z-index: 1; }
+    #fallback-canvas {
+      display: none;
+      width: 100%;
+      height: 100%;
+      background: #0f172a;
+      cursor: crosshair;
+    }
+    .map-hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .nearest-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 14px;
+    }
+    .tech-list {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 12px;
+    }
+    .tech-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      background: #fff;
+      transition: 0.2s;
+    }
+    .tech-card.selected { border: 2px solid #2563eb; background: #eff6ff; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .badge-avail { background: #dcfce7; color: #166534; }
+    .badge-busy { background: #fee2e2; color: #991b1b; }
+    .privacy-note {
+      font-size: 11px;
+      color: var(--muted);
+      background: #f8fafc;
+      padding: 8px;
+      border-radius: 6px;
+      margin-top: 10px;
+      border-right: 3px solid var(--whatsapp);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>🚗 إنقاذ الطريق</h1>
+    <span>القاهرة الكبرى</span>
+  </div>
+  <div class="support-badge">
+    خدمة العملاء الموحدة (واتساب): <strong dir="ltr">+20 127 136 1974</strong>
+  </div>
+</header>
+
+<div class="container">
+  <!-- لوحة التحكم وطلب الاستغاثة -->
+  <div class="panel">
+    <h2>1. حدد موقعك ونوع العطل</h2>
+    <button class="btn btn-gps" onclick="locateUser()">📍 تحديد موقعي الحالي (GPS)</button>
+
+    <label>أو اختر منطقة سريعة في القاهرة الكبرى:</label>
+    <div class="presets">
+      <button class="preset-btn" onclick="setLocation(30.0561, 31.2001, 'المهندسين')">المهندسين</button>
+      <button class="preset-btn" onclick="setLocation(30.0511, 31.3656, 'مدينة نصر')">مدينة نصر</button>
+      <button class="preset-btn" onclick="setLocation(29.9602, 31.2569, 'المعادي')">المعادي</button>
+      <button class="preset-btn" onclick="setLocation(30.0131, 30.9716, 'الشيخ زايد')">الشيخ زايد</button>
+      <button class="preset-btn" onclick="setLocation(30.0074, 31.4913, 'التجمع الخامس')">التجمع الخامس</button>
+      <button class="preset-btn" onclick="setLocation(30.0910, 31.3250, 'مصر الجديدة')">مصر الجديدة</button>
+      <button class="preset-btn" onclick="setLocation(29.9885, 31.1444, 'الدائري - المريوطية')">الدائري / المريوطية</button>
+      <button class="preset-btn" onclick="setLocation(30.1123, 31.2442, 'شبرا')">شبرا</button>
+    </div>
+
+    <label for="specialty">نوع الخدمة المطلوبة:</label>
+    <select id="specialty" onchange="renderAll()">
+      <option value="">جميع التخصصات المتاحة</option>
+      <option value="ميكانيكي">ميكانيكي سيارات</option>
+      <option value="كهربائي">كهربائي وبطاريات</option>
+      <option value="كاوتش">كاوتش وإطارات</option>
+      <option value="ونش">ونش إنقاذ وسحب</option>
+    </select>
+
+    <label for="issue">وصف مختصر للعطل (اختياري):</label>
+    <textarea id="issue" rows="2" placeholder="مثال: العربية بطلت فجأة ومش بتدور..."></textarea>
+
+    <div id="nearest-container"></div>
+
+    <div class="privacy-note">
+      🔒 لحماية جودة الخدمة وضمان التسعير العادل، يتم التواصل وتوجيه الفني حصريًا عبر رقم واتساب خدمة العملاء الموحد.
+    </div>
+  </div>
+
+  <!-- الخريطة وقائمة الفنيين -->
+  <div class="panel">
+    <h2>2. الخريطة الحية وأقرب الفنيين في القاهرة الكبرى</h2>
+    <div id="map-wrapper">
+      <div id="map"></div>
+      <canvas id="fallback-canvas"></canvas>
+    </div>
+    <div class="map-hint">
+      <span>💡 يمكنك الضغط على أي مكان في الخريطة لتغيير موقع السيارة المتعطلة.</span>
+      <span id="coords-display" dir="ltr">30.0444, 31.2357</span>
+    </div>
+
+    <h2 style="margin-top:18px;">3. الفنيون المتاحون حسب الأقرب لموقعك</h2>
+    <div id="tech-list" class="tech-list"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const SUPPORT_WHATSAPP = "201271361974";
+
+  let userLoc = { lat: 30.0444, lng: 31.2357, label: "وسط البلد / التحرير" };
+  let selectedTechId = null;
+  let map = null;
+  let userMarker = null;
+  let techMarkers = [];
+  let routeLine = null;
+  let useFallbackCanvas = false;
+
+  const technicians = [
+    { id: "TECH-101", name: "م. أحمد محمود", specialty: "ميكانيكي سيارات", area: "المهندسين", lat: 30.0561, lng: 31.2001, available: true, rating: "4.9" },
+    { id: "TECH-102", name: "م. محمود سيد", specialty: "كاوتش وإطارات", area: "مدينة نصر", lat: 30.0511, lng: 31.3656, available: true, rating: "4.8" },
+    { id: "TECH-103", name: "كابتن كريم حسن", specialty: "ونش إنقاذ وسحب", area: "الدائري - المريوطية", lat: 29.9885, lng: 31.1444, available: true, rating: "4.9" },
+    { id: "TECH-104", name: "م. طارق عبد الله", specialty: "كهربائي وبطاريات", area: "المعادي", lat: 29.9602, lng: 31.2569, available: true, rating: "4.7" },
+    { id: "TECH-105", name: "م. إسلام عادل", specialty: "ميكانيكي سيارات", area: "التجمع الخامس", lat: 30.0074, lng: 31.4913, available: true, rating: "4.8" },
+    { id: "TECH-106", name: "كابتن هاني سمير", specialty: "ونش إنقاذ وسحب", area: "الشيخ زايد", lat: 30.0131, lng: 30.9716, available: true, rating: "4.9" },
+    { id: "TECH-107", name: "م. مصطفى جمال", specialty: "كهربائي وبطاريات", area: "مصر الجديدة", lat: 30.0910, lng: 31.3250, available: true, rating: "4.6" },
+    { id: "TECH-108", name: "م. وائل نبيل", specialty: "كاوتش وإطارات", area: "شبرا", lat: 30.1123, lng: 31.2442, available: false, rating: "4.7" }
+  ];
+
+  function calcDistanceKm(lat1, lon1, lat2, lon2) {
+    const toRad = v => (v * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  }
+
+  function initMap() {
+    try {
+      if (typeof L === 'undefined') throw new Error("Leaflet not loaded");
+      map = L.map('map').setView([userLoc.lat, userLoc.lng], 11);
+      const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        maxZoom: 19
+      });
+      tiles.on('tileerror', () => {
+        enableFallbackMap();
+      });
+      tiles.addTo(map);
+
+      map.on('click', (e) => {
+        setLocation(e.latlng.lat, e.latlng.lng, "موقع محدد على الخريطة");
+      });
+    } catch (e) {
+      enableFallbackMap();
+    }
+  }
+
+  function enableFallbackMap() {
+    if (useFallbackCanvas) return;
+    useFallbackCanvas = true;
+    document.getElementById('map').style.display = 'none';
+    const canvas = document.getElementById('fallback-canvas');
+    canvas.style.display = 'block';
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const xRatio = (e.clientX - rect.left) / rect.width;
+      const yRatio = (e.clientY - rect.top) / rect.height;
+      const lng = 30.90 + xRatio * (31.60 - 30.90);
+      const lat = 30.18 - yRatio * (30.18 - 29.90);
+      setLocation(lat, lng, "موقع محدد على الخريطة");
+    });
+    drawFallbackCanvas();
+  }
+
+  function drawFallbackCanvas() {
+    const canvas = document.getElementById('fallback-canvas');
+    if (!canvas || !useFallbackCanvas) return;
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(0, 0, w, h);
+
+    // شبكة إحداثيات
+    ctx.strokeStyle = "#1e293b";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < w; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke(); }
+    for (let j = 0; j < h; j += 40) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(w, j); ctx.stroke(); }
+
+    const toXY = (lat, lng) => ({
+      x: ((lng - 30.90) / (31.60 - 30.90)) * w,
+      y: ((30.18 - lat) / (30.18 - 29.90)) * h
+    });
+
+    const uPos = toXY(userLoc.lat, userLoc.lng);
+    const sorted = getFilteredTechs();
+    const target = sorted.find(t => t.id === selectedTechId) || sorted.find(t => t.available);
+
+    if (target) {
+      const tPos = toXY(target.lat, target.lng);
+      ctx.strokeStyle = "#22c55e";
+      ctx.setLineDash([6, 6]);
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(uPos.x, uPos.y);
+      ctx.lineTo(tPos.x, tPos.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    technicians.forEach(t => {
+      const p = toXY(t.lat, t.lng);
+      ctx.fillStyle = t.available ? "#22c55e" : "#64748b";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = "11px Arial";
+      ctx.fillText(t.area, p.x + 10, p.y + 4);
+    });
+
+    ctx.fillStyle = "#ef4444";
+    ctx.beginPath();
+    ctx.arc(uPos.x, uPos.y, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 12px Arial";
+    ctx.fillText("سيارتك هنا", uPos.x + 12, uPos.y + 4);
+  }
+
+  function setLocation(lat, lng, label) {
+    userLoc = { lat: Number(lat.toFixed(5)), lng: Number(lng.toFixed(5)), label };
+    document.getElementById('coords-display').textContent = `${userLoc.lat}, ${userLoc.lng}`;
+    selectedTechId = null;
+    if (map && !useFallbackCanvas) {
+      map.setView([userLoc.lat, userLoc.lng], 12);
+    }
+    renderAll();
+  }
+
+  function locateUser() {
+    if (!navigator.geolocation) {
+      alert("المتصفح لا يدعم GPS، اختر منطقتك من القائمة أو اضغط على الخريطة.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setLocation(pos.coords.latitude, pos.coords.longitude, "موقعي الحالي (GPS)"),
+      () => alert("تعذر الوصول للـ GPS. يمكنك اختيار منطقتك في القاهرة الكبرى من الأزرار أو الضغط على الخريطة.")
+    );
+  }
+
+  function getFilteredTechs() {
+    const spec = document.getElementById('specialty').value;
+    return technicians
+      .filter(t => !spec || t.specialty.includes(spec))
+      .map(t => ({
+        ...t,
+        distanceKm: Number(calcDistanceKm(userLoc.lat, userLoc.lng, t.lat, t.lng).toFixed(2))
+      }))
+      .sort((a, b) => {
+        if (a.available !== b.available) return a.available ? -1 : 1;
+        return a.distanceKm - b.distanceKm;
+      });
+  }
+
+  function buildWhatsAppUrl(tech) {
+    const issue = document.getElementById('issue').value.trim() || "غير محدد";
+    const gmapsUser = `https://www.google.com/maps?q=${userLoc.lat},${userLoc.lng}`;
+    const gmapsRoute = `https://www.google.com/maps/dir/?api=1&origin=${tech.lat},${tech.lng}&destination=${userLoc.lat},${userLoc.lng}`;
+    const msg = [
+      "السلام عليكم، أحتاج مساعدة إنقاذ طريق عاجلة 🚗",
+      `• المنطقة: ${userLoc.label}`,
+      `• رابط موقعي على خرائط جوجل: ${gmapsUser}`,
+      `• الفني المطلوب: ${tech.name} (${tech.id})`,
+      `• التخصص: ${tech.specialty} - نطاق ${tech.area}`,
+      `• المسافة التقريبية: ${tech.distanceKm} كم`,
+      `• وصف العطل: ${issue}`,
+      `• مسار الفني للعميل: ${gmapsRoute}`
+    ].join("\n");
+    return `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`;
+  }
+
+  function selectTech(id) {
+    selectedTechId = id;
+    renderAll();
+  }
+
+  function renderAll() {
+    const list = getFilteredTechs();
+    const activeTech = list.find(t => t.id === selectedTechId) || list.find(t => t.available) || list[0];
+
+    const nearestContainer = document.getElementById('nearest-container');
+    if (activeTech) {
+      const gmapsLoc = `https://www.google.com/maps?q=${userLoc.lat},${userLoc.lng}`;
+      nearestContainer.innerHTML = `
+        <div class="nearest-box">
+          <div style="font-size:12px; color:#166534; font-weight:bold;">✅ الفني المرشح لخدمتك الآن:</div>
+          <div style="font-size:16px; font-weight:bold; margin:4px 0;">${activeTech.name} <span style="font-size:12px; color:#64748b;">(${activeTech.id})</span></div>
+          <div style="font-size:13px;">التخصص: <strong>${activeTech.specialty}</strong> | التمركز: ${activeTech.area}</div>
+          <div style="font-size:13px; margin-top:4px;">المسافة التقريبية: <strong>${activeTech.distanceKm} كم</strong> ⭐ ${activeTech.rating}</div>
+          <a href="${buildWhatsAppUrl(activeTech)}" target="_blank" style="text-decoration:none;">
+            <button class="btn btn-wa">💬 اطلب هذا الفني عبر واتساب خدمة العملاء</button>
+          </a>
+          <a href="${gmapsLoc}" target="_blank" style="text-decoration:none;">
+            <button class="btn btn-gmaps">🗺️ فتح موقعي في تطبيق Google Maps</button>
+          </a>
+        </div>
+      `;
+    } else {
+      nearestContainer.innerHTML = `<p style="color:#dc2626;">لا يوجد فنيون مطابقون لهذا التخصص حاليًا.</p>`;
+    }
+
+    const techListDiv = document.getElementById('tech-list');
+    techListDiv.innerHTML = list.map(t => `
+      <div class="tech-card ${activeTech && activeTech.id === t.id ? 'selected' : ''}" onclick="selectTech('${t.id}')" style="cursor:pointer;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong>${t.name}</strong>
+          <span class="badge ${t.available ? 'badge-avail' : 'badge-busy'}">${t.available ? 'متاح الآن' : 'مشغول'}</span>
+        </div>
+        <div style="font-size:12px; color:#64748b; margin-top:3px;">كود: ${t.id} • ${t.area}</div>
+        <div style="font-size:13px; margin-top:6px;">🔧 ${t.specialty}</div>
+        <div style="font-size:13px; margin-top:4px; font-weight:bold; color:#2563eb;">📍 يبعد ${t.distanceKm} كم</div>
+      </div>
+    `).join('');
+
+    if (map && !useFallbackCanvas) {
+      if (userMarker) map.removeLayer(userMarker);
+      techMarkers.forEach(m => map.removeLayer(m));
+      techMarkers = [];
+      if (routeLine) map.removeLayer(routeLine);
+
+      userMarker = L.circleMarker([userLoc.lat, userLoc.lng], {
+        radius: 10, fillColor: "#ef4444", color: "#fff", weight: 3, fillOpacity: 1
+      }).addTo(map).bindPopup(`<b>موقع سيارتك</b><br>${userLoc.label}`).openPopup();
+
+      list.forEach(t => {
+        const m = L.circleMarker([t.lat, t.lng], {
+          radius: 8,
+          fillColor: t.available ? "#22c55e" : "#94a3b8",
+          color: "#fff",
+          weight: 2,
+          fillOpacity: 0.95
+        }).addTo(map).bindPopup(`<b>${t.name} (${t.id})</b><br>${t.specialty} - ${t.area}<br>المسافة: ${t.distanceKm} كم`);
+        techMarkers.push(m);
+      });
+
+      if (activeTech) {
+        routeLine = L.polyline([[userLoc.lat, userLoc.lng], [activeTech.lat, activeTech.lng]], {
+          color: '#2563eb', weight: 3, dashArray: '6, 8'
+        }).addTo(map);
+      }
+    } else {
+      drawFallbackCanvas();
+    }
+  }
+
+  window.addEventListener('load', () => {
+    initMap();
+    renderAll();
+  });
+</script>
+</body>
+</html>
